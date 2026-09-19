@@ -1,19 +1,46 @@
-import React, { useState } from 'react';
-import { Smartphone, Monitor, Globe, Laptop, Eye, Sparkles } from 'lucide-react';
-import type { MaskShape, ResizeOptions, SourceImageMeta } from '../types';
+import React, { useEffect, useState } from 'react';
+import { Smartphone, Monitor, Globe, Laptop, Eye, Sparkles, Sun, Moon, Sparkle } from 'lucide-react';
+import type { MaskShape, MultiLayerState, ResizeOptions, SourceImageMeta } from '../types';
+import { createMonochromeDataUrl } from '../engine/resizerEngine';
 
 interface DeviceSimulatorProps {
   sourceImage: SourceImageMeta | null;
+  multiLayerState?: MultiLayerState;
   options: ResizeOptions;
   appName: string;
 }
 
 type DeviceMode = 'ios' | 'android' | 'macos' | 'windows' | 'web';
 
-export const DeviceSimulator: React.FC<DeviceSimulatorProps> = ({ sourceImage, options, appName }) => {
+export const DeviceSimulator: React.FC<DeviceSimulatorProps> = ({
+  sourceImage,
+  multiLayerState,
+  options,
+  appName,
+}) => {
   const [deviceMode, setDeviceMode] = useState<DeviceMode>('ios');
-  // 'auto' uses the native OS shape; selecting a shape forces that mask on the mockup
   const [maskOverride, setMaskOverride] = useState<MaskShape | 'auto'>('auto');
+  const [iosAppearance, setIosAppearance] = useState<'light' | 'dark' | 'tinted'>('light');
+  const [androidThemed, setAndroidThemed] = useState<boolean>(false);
+  const [synthMonoUrl, setSynthMonoUrl] = useState<string | null>(null);
+
+  const activeFgUrl = multiLayerState?.foreground?.dataUrl || sourceImage?.dataUrl || '';
+  const activeBgUrl = multiLayerState?.background?.dataUrl || null;
+  const activeMonoUrl = multiLayerState?.monochrome?.dataUrl || synthMonoUrl || null;
+
+  useEffect(() => {
+    if (activeFgUrl && !multiLayerState?.monochrome) {
+      let isCancelled = false;
+      createMonochromeDataUrl(activeFgUrl, 128)
+        .then((url) => {
+          if (!isCancelled) setSynthMonoUrl(url);
+        })
+        .catch(() => {});
+      return () => {
+        isCancelled = true;
+      };
+    }
+  }, [activeFgUrl, multiLayerState?.monochrome]);
 
   const getMaskClass = (shape: MaskShape) => {
     switch (shape) {
@@ -30,36 +57,114 @@ export const DeviceSimulator: React.FC<DeviceSimulatorProps> = ({ sourceImage, o
     }
   };
 
-  const currentIconUrl = sourceImage?.dataUrl || '';
-
   // Render the icon with user's background color, safe padding, and dynamic mask
   const renderMockupIcon = (sizeClass: string = 'h-14 w-14', defaultDeviceShape: MaskShape = 'squircle') => {
     const effectiveShape: MaskShape = maskOverride === 'auto' ? defaultDeviceShape : maskOverride;
     const shapeClass = getMaskClass(effectiveShape);
     const paddingVal = `${options.padding}%`;
 
+    // 1. Android Themed (Material You dynamic theme)
+    if (deviceMode === 'android' && androidThemed) {
+      return (
+        <div
+          className={`relative ${sizeClass} ${shapeClass} overflow-hidden shadow-lg transition-all duration-300 hover:scale-105 shrink-0 bg-[#2d3a33] flex items-center justify-center`}
+        >
+          {activeMonoUrl || activeFgUrl ? (
+            <img
+              src={activeMonoUrl || activeFgUrl}
+              alt={appName}
+              className="h-full w-full object-contain brightness-150 contrast-200 hue-rotate-90"
+              style={{
+                padding: paddingVal,
+                filter: 'brightness(0) saturate(100%) invert(88%) sepia(21%) saturate(541%) hue-rotate(92deg) brightness(98%) contrast(92%)',
+              }}
+            />
+          ) : (
+            <Sparkles className="h-4 w-4 text-emerald-300 opacity-70" />
+          )}
+        </div>
+      );
+    }
+
+    // 2. iOS 18 Tinted
+    if (deviceMode === 'ios' && iosAppearance === 'tinted') {
+      return (
+        <div
+          className={`relative ${sizeClass} ${shapeClass} overflow-hidden shadow-lg transition-all duration-300 hover:scale-105 shrink-0 bg-[#121b28] flex items-center justify-center border border-cyan-500/20`}
+        >
+          {activeMonoUrl || activeFgUrl ? (
+            <img
+              src={activeMonoUrl || activeFgUrl}
+              alt={appName}
+              className="h-full w-full object-contain"
+              style={{
+                padding: paddingVal,
+                filter: 'brightness(0) saturate(100%) invert(67%) sepia(85%) saturate(2200%) hue-rotate(160deg) brightness(101%) contrast(98%)',
+              }}
+            />
+          ) : (
+            <Sparkles className="h-4 w-4 text-cyan-400 opacity-70" />
+          )}
+        </div>
+      );
+    }
+
+    // 3. iOS 18 Dark
+    if (deviceMode === 'ios' && iosAppearance === 'dark') {
+      return (
+        <div
+          className={`relative ${sizeClass} ${shapeClass} overflow-hidden shadow-lg transition-all duration-300 hover:scale-105 shrink-0 bg-[#1c1c1e] border border-white/5`}
+        >
+          {activeFgUrl ? (
+            <img
+              src={activeFgUrl}
+              alt={appName}
+              className="h-full w-full object-contain"
+              style={{ padding: paddingVal }}
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-slate-500">
+              <Sparkles className="h-4 w-4 text-indigo-400 opacity-70" />
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // 4. Default / Light / Layered Composite
     return (
       <div
         className={`relative ${sizeClass} ${shapeClass} overflow-hidden shadow-lg transition-all duration-300 hover:scale-105 shrink-0`}
         style={{
-          backgroundColor: options.backgroundColor === 'transparent' ? 'transparent' : options.backgroundColor,
+          backgroundColor:
+            activeBgUrl ? undefined : options.backgroundColor === 'transparent' ? 'transparent' : options.backgroundColor,
           background:
-            options.backgroundMode === 'gradient' && options.gradientStart && options.gradientEnd
+            !activeBgUrl && options.backgroundMode === 'gradient' && options.gradientStart && options.gradientEnd
               ? `linear-gradient(${options.gradientAngle || 135}deg, ${options.gradientStart}, ${options.gradientEnd})`
-              : options.backgroundColor !== 'transparent'
+              : !activeBgUrl && options.backgroundColor !== 'transparent'
               ? options.backgroundColor
               : undefined,
         }}
       >
-        {currentIconUrl ? (
+        {/* Layer 1: Background Image if provided */}
+        {activeBgUrl && (
           <img
-            src={currentIconUrl}
+            src={activeBgUrl}
+            alt="Background Layer"
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+        )}
+
+        {/* Layer 2: Foreground Logo */}
+        {activeFgUrl ? (
+          <img
+            src={activeFgUrl}
             alt={appName}
-            className="h-full w-full object-contain"
+            className="relative h-full w-full object-contain z-10"
             style={{ padding: paddingVal }}
           />
         ) : (
-          <div className="flex h-full w-full flex-col items-center justify-center bg-slate-800/80 border border-dashed border-indigo-400/40 text-indigo-300">
+          <div className="relative z-10 flex h-full w-full flex-col items-center justify-center bg-slate-800/80 border border-dashed border-indigo-400/40 text-indigo-300">
             <Sparkles className="h-4 w-4 text-cyan-400 opacity-70" />
             <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider">Icon</span>
           </div>
@@ -71,7 +176,7 @@ export const DeviceSimulator: React.FC<DeviceSimulatorProps> = ({ sourceImage, o
   return (
     <div className="w-full rounded-2xl border border-slate-800 bg-slate-900/60 p-4 sm:p-6 backdrop-blur-xl shadow-xl">
       {/* Header & Device Switcher */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800/80 pb-4">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-800/80 pb-4">
         <div>
           <div className="flex items-center gap-2">
             <Eye className="h-4 w-4 text-cyan-400" />
@@ -84,67 +189,145 @@ export const DeviceSimulator: React.FC<DeviceSimulatorProps> = ({ sourceImage, o
           </p>
         </div>
 
-        {/* Device Switcher Tabs */}
-        <div className="flex items-center gap-1 overflow-x-auto rounded-xl bg-slate-950/80 p-1 border border-slate-800 max-w-full">
-          <button
-            onClick={() => setDeviceMode('ios')}
-            className={`flex items-center gap-1.5 rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-all ${
-              deviceMode === 'ios'
-                ? 'bg-indigo-600 text-white shadow-md font-semibold'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
-            }`}
-          >
-            <Smartphone className="h-3.5 w-3.5" />
-            <span>iPhone</span>
-          </button>
+        {/* Device Switcher Tabs & Appearance Controls */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* OS Environment Tabs */}
+          <div className="flex items-center gap-1 overflow-x-auto rounded-xl bg-slate-950/80 p-1 border border-slate-800 max-w-full">
+            <button
+              onClick={() => setDeviceMode('ios')}
+              className={`flex items-center gap-1.5 rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-all ${
+                deviceMode === 'ios'
+                  ? 'bg-indigo-600 text-white shadow-md font-semibold'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+              }`}
+            >
+              <Smartphone className="h-3.5 w-3.5" />
+              <span>iPhone</span>
+            </button>
 
-          <button
-            onClick={() => setDeviceMode('android')}
-            className={`flex items-center gap-1.5 rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-all ${
-              deviceMode === 'android'
-                ? 'bg-indigo-600 text-white shadow-md font-semibold'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
-            }`}
-          >
-            <Smartphone className="h-3.5 w-3.5" />
-            <span>Android</span>
-          </button>
+            <button
+              onClick={() => setDeviceMode('android')}
+              className={`flex items-center gap-1.5 rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-all ${
+                deviceMode === 'android'
+                  ? 'bg-indigo-600 text-white shadow-md font-semibold'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+              }`}
+            >
+              <Smartphone className="h-3.5 w-3.5" />
+              <span>Android</span>
+            </button>
 
-          <button
-            onClick={() => setDeviceMode('macos')}
-            className={`flex items-center gap-1.5 rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-all ${
-              deviceMode === 'macos'
-                ? 'bg-indigo-600 text-white shadow-md font-semibold'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
-            }`}
-          >
-            <Laptop className="h-3.5 w-3.5" />
-            <span>macOS</span>
-          </button>
+            <button
+              onClick={() => setDeviceMode('macos')}
+              className={`flex items-center gap-1.5 rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-all ${
+                deviceMode === 'macos'
+                  ? 'bg-indigo-600 text-white shadow-md font-semibold'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+              }`}
+            >
+              <Laptop className="h-3.5 w-3.5" />
+              <span>macOS</span>
+            </button>
 
-          <button
-            onClick={() => setDeviceMode('windows')}
-            className={`flex items-center gap-1.5 rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-all ${
-              deviceMode === 'windows'
-                ? 'bg-indigo-600 text-white shadow-md font-semibold'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
-            }`}
-          >
-            <Monitor className="h-3.5 w-3.5" />
-            <span>Windows</span>
-          </button>
+            <button
+              onClick={() => setDeviceMode('windows')}
+              className={`flex items-center gap-1.5 rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-all ${
+                deviceMode === 'windows'
+                  ? 'bg-indigo-600 text-white shadow-md font-semibold'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+              }`}
+            >
+              <Monitor className="h-3.5 w-3.5" />
+              <span>Windows</span>
+            </button>
 
-          <button
-            onClick={() => setDeviceMode('web')}
-            className={`flex items-center gap-1.5 rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-all ${
-              deviceMode === 'web'
-                ? 'bg-indigo-600 text-white shadow-md font-semibold'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
-            }`}
-          >
-            <Globe className="h-3.5 w-3.5" />
-            <span>Web Tab</span>
-          </button>
+            <button
+              onClick={() => setDeviceMode('web')}
+              className={`flex items-center gap-1.5 rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-all ${
+                deviceMode === 'web'
+                  ? 'bg-indigo-600 text-white shadow-md font-semibold'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+              }`}
+            >
+              <Globe className="h-3.5 w-3.5" />
+              <span>Web Tab</span>
+            </button>
+          </div>
+
+          {/* iOS 18 Appearance Switcher */}
+          {deviceMode === 'ios' && (
+            <div className="flex items-center gap-1 rounded-xl bg-slate-950/80 p-1 border border-indigo-500/30">
+              <button
+                type="button"
+                onClick={() => setIosAppearance('light')}
+                className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium transition-all ${
+                  iosAppearance === 'light'
+                    ? 'bg-white text-slate-900 font-bold'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+                title="Light Appearance"
+              >
+                <Sun className="h-3 w-3" />
+                <span>Light</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIosAppearance('dark')}
+                className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium transition-all ${
+                  iosAppearance === 'dark'
+                    ? 'bg-slate-800 text-white font-bold border border-slate-700'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+                title="iOS 18 Dark Appearance"
+              >
+                <Moon className="h-3 w-3" />
+                <span>Dark</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIosAppearance('tinted')}
+                className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium transition-all ${
+                  iosAppearance === 'tinted'
+                    ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 font-bold'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+                title="iOS 18 Tinted Appearance"
+              >
+                <Sparkle className="h-3 w-3" />
+                <span>Tinted</span>
+              </button>
+            </div>
+          )}
+
+          {/* Android Themed (Material You) Switcher */}
+          {deviceMode === 'android' && (
+            <div className="flex items-center gap-1 rounded-xl bg-slate-950/80 p-1 border border-emerald-500/30">
+              <button
+                type="button"
+                onClick={() => setAndroidThemed(false)}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${
+                  !androidThemed
+                    ? 'bg-emerald-600 text-white font-semibold'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Default
+              </button>
+              <button
+                type="button"
+                onClick={() => setAndroidThemed(true)}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${
+                  androidThemed
+                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 font-bold'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+                title="Android 13+ Material You Themed Icon"
+              >
+                <Sparkles className="h-3 w-3" />
+                <span>Material You</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

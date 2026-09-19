@@ -4,7 +4,7 @@ export interface FileSpec {
   path: string;
   width: number;
   height: number;
-  shape?: 'default' | 'round' | 'foreground' | 'background';
+  shape?: 'default' | 'round' | 'foreground' | 'background' | 'monochrome' | 'dark' | 'tinted' | 'maskable';
   purpose?: string;
 }
 
@@ -12,20 +12,20 @@ export const PLATFORMS: PlatformConfig[] = [
   {
     id: 'ios',
     name: 'iOS & iPadOS',
-    description: 'Xcode asset catalog (AppIcon.appiconset) with complete Contents.json',
+    description: 'Xcode asset catalog (AppIcon.appiconset) with iOS 18 Light, Dark, and Tinted appearances',
     iconName: 'Smartphone',
-    fileCount: 20,
-    highlightSpecs: ['AppIcon.appiconset', 'Contents.json', 'iPhone & iPad', '1024×1024 Store'],
+    fileCount: 22,
+    highlightSpecs: ['AppIcon.appiconset', 'Contents.json', 'iOS 18 Dark & Tinted', '1024×1024 Store'],
     enabled: true,
-    directoryPreview: 'ios/AppIcon.appiconset/Contents.json + 19 PNGs',
+    directoryPreview: 'ios/AppIcon.appiconset/Contents.json + 21 PNGs',
   },
   {
     id: 'android',
     name: 'Android',
-    description: 'Modern Adaptive Icons + legacy mipmap densities + Play Store 512×512',
+    description: 'Modern Adaptive Icons + Android 13+ Themed Icons + legacy mipmaps + Play Store 512',
     iconName: 'SmartphoneCharging',
-    fileCount: 22,
-    highlightSpecs: ['mipmap-mdpi to xxxhdpi', 'Adaptive Foregrounds', 'XML Vectors', 'Play Store 512'],
+    fileCount: 23,
+    highlightSpecs: ['Adaptive Foregrounds', 'Android 13+ Monochrome', 'XML Vectors', 'Play Store 512'],
     enabled: true,
     directoryPreview: 'android/res/mipmap-* + drawable + playstore-512.png',
   },
@@ -42,10 +42,10 @@ export const PLATFORMS: PlatformConfig[] = [
   {
     id: 'web',
     name: 'Web & PWA',
-    description: 'Progressive Web App manifest, apple-touch-icon, and browserconfig.xml',
+    description: 'Progressive Web App manifest, maskable icon, apple-touch-icon, and browserconfig.xml',
     iconName: 'Globe',
-    fileCount: 9,
-    highlightSpecs: ['site.webmanifest', 'apple-touch-icon 180×180', '192 & 512 Chrome', 'HTML snippets'],
+    fileCount: 10,
+    highlightSpecs: ['site.webmanifest', 'Maskable 512×512', 'apple-touch-icon', 'HTML snippets'],
     enabled: true,
     directoryPreview: 'web/site.webmanifest + icons + HTML snippet',
   },
@@ -97,7 +97,9 @@ export const IOS_FILE_SPECS: FileSpec[] = [
   { path: 'ios/AppIcon.appiconset/icon-76.png', width: 76, height: 76, purpose: 'iPad App' },
   { path: 'ios/AppIcon.appiconset/icon-76@2x.png', width: 152, height: 152, purpose: 'iPad App' },
   { path: 'ios/AppIcon.appiconset/icon-83.5@2x.png', width: 167, height: 167, purpose: 'iPad Pro App' },
-  { path: 'ios/AppIcon.appiconset/icon-1024.png', width: 1024, height: 1024, purpose: 'App Store Marketing' },
+  { path: 'ios/AppIcon.appiconset/icon-1024.png', width: 1024, height: 1024, purpose: 'App Store Marketing (Light)' },
+  { path: 'ios/AppIcon.appiconset/icon-1024-dark.png', width: 1024, height: 1024, shape: 'dark', purpose: 'iOS 18 Dark Appearance' },
+  { path: 'ios/AppIcon.appiconset/icon-1024-tinted.png', width: 1024, height: 1024, shape: 'tinted', purpose: 'iOS 18 Tinted Appearance' },
 ];
 
 export function generateXcodeContentsJson(): string {
@@ -121,6 +123,22 @@ export function generateXcodeContentsJson(): string {
       { size: '76x76', idiom: 'ipad', filename: 'icon-76@2x.png', scale: '2x' },
       { size: '83.5x83.5', idiom: 'ipad', filename: 'icon-83.5@2x.png', scale: '2x' },
       { size: '1024x1024', idiom: 'ios-marketing', filename: 'icon-1024.png', scale: '1x' },
+      {
+        size: '1024x1024',
+        idiom: 'universal',
+        platform: 'ios',
+        appearances: [{ appearance: 'luminosity', value: 'dark' }],
+        filename: 'icon-1024-dark.png',
+        scale: '1x',
+      },
+      {
+        size: '1024x1024',
+        idiom: 'universal',
+        platform: 'ios',
+        appearances: [{ appearance: 'luminosity', value: 'tinted' }],
+        filename: 'icon-1024-tinted.png',
+        scale: '1x',
+      },
     ],
     info: {
       version: 1,
@@ -147,6 +165,8 @@ export const ANDROID_FILE_SPECS: FileSpec[] = [
   // Adaptive icon foregrounds (transparent centered asset)
   { path: 'android/res/drawable-nodpi/ic_launcher_foreground.png', width: 432, height: 432, shape: 'foreground' },
   { path: 'android/res/drawable-nodpi/ic_launcher_background.png', width: 432, height: 432, shape: 'background' },
+  // Android 13+ (API 33+) Themed / Monochrome icon
+  { path: 'android/res/drawable-nodpi/ic_launcher_monochrome.png', width: 432, height: 432, shape: 'monochrome', purpose: 'Themed Monochrome Icon' },
   // Notification icons
   { path: 'android/res/drawable-mdpi/ic_stat_notify.png', width: 24, height: 24 },
   { path: 'android/res/drawable-hdpi/ic_stat_notify.png', width: 36, height: 36 },
@@ -162,6 +182,7 @@ export function generateAndroidAdaptiveXml(): string {
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
     <background android:drawable="@drawable/ic_launcher_background" />
     <foreground android:drawable="@drawable/ic_launcher_foreground" />
+    <monochrome android:drawable="@drawable/ic_launcher_monochrome" />
 </adaptive-icon>
 `;
 }
@@ -195,6 +216,7 @@ export const WEB_FILE_SPECS: FileSpec[] = [
   { path: 'web/apple-touch-icon.png', width: 180, height: 180 },
   { path: 'web/android-chrome-192x192.png', width: 192, height: 192 },
   { path: 'web/android-chrome-512x512.png', width: 512, height: 512 },
+  { path: 'web/maskable-icon-512x512.png', width: 512, height: 512, shape: 'maskable', purpose: 'PWA Maskable Icon (80% Safe Zone)' },
   { path: 'web/mstile-150x150.png', width: 150, height: 150 },
 ];
 
@@ -207,13 +229,19 @@ export function generateWebManifest(appName: string = 'My Application'): string 
         src: '/android-chrome-192x192.png',
         sizes: '192x192',
         type: 'image/png',
-        purpose: 'any maskable',
+        purpose: 'any',
       },
       {
         src: '/android-chrome-512x512.png',
         sizes: '512x512',
         type: 'image/png',
-        purpose: 'any maskable',
+        purpose: 'any',
+      },
+      {
+        src: '/maskable-icon-512x512.png',
+        sizes: '512x512',
+        type: 'image/png',
+        purpose: 'maskable',
       },
     ],
     theme_color: '#0a0d14',

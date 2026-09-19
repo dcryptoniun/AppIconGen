@@ -82,15 +82,92 @@ export function steppedDownscale(
   return finalCanvas;
 }
 
+export interface LayerInputImages {
+  master?: HTMLImageElement | null;
+  foreground?: HTMLImageElement | null;
+  background?: HTMLImageElement | null;
+  monochrome?: HTMLImageElement | null;
+}
+
 /**
- * Renders an image to an HTMLCanvasElement with options (padding, background, corner radius).
+ * Synthesizes a spec-compliant monochrome silhouette from any canvas or image source.
+ * Preserves alpha anti-aliasing while replacing RGB with pure tint color (default pure white #FFF).
  */
-export function renderIconToCanvas(
-  img: HTMLImageElement,
+export function synthesizeMonochromeCanvas(
+  source: CanvasImageSource,
+  sourceWidth: number,
+  sourceHeight: number,
+  targetWidth: number,
+  targetHeight: number,
+  tintColor: string = '#FFFFFF'
+): HTMLCanvasElement {
+  const downscaled = steppedDownscale(source, sourceWidth, sourceHeight, targetWidth, targetHeight);
+  const canvas = document.createElement('canvas');
+  canvas.width = targetWidth;
+  canvas.height = targetHeight;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Could not get 2D context');
+
+  ctx.drawImage(downscaled, 0, 0);
+
+  const imgData = ctx.getImageData(0, 0, targetWidth, targetHeight);
+  const data = imgData.data;
+
+  // Determine if image has meaningful transparency
+  let hasAlpha = false;
+  for (let i = 3; i < data.length; i += 4) {
+    if (data[i] < 240) {
+      hasAlpha = true;
+      break;
+    }
+  }
+
+  // Parse tintColor hex
+  let r = 255, g = 255, b = 255;
+  if (tintColor.startsWith('#') && tintColor.length >= 7) {
+    r = parseInt(tintColor.slice(1, 3), 16) || 255;
+    g = parseInt(tintColor.slice(3, 5), 16) || 255;
+    b = parseInt(tintColor.slice(5, 7), 16) || 255;
+  }
+
+  for (let i = 0; i < data.length; i += 4) {
+    if (hasAlpha) {
+      // For transparent logos: preserve alpha, tint visible pixels
+      data[i] = r;
+      data[i + 1] = g;
+      data[i + 2] = b;
+    } else {
+      // For opaque images: calculate luminance threshold
+      const lum = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+      data[i] = r;
+      data[i + 1] = g;
+      data[i + 2] = b;
+      data[i + 3] = lum > 128 ? 255 : 0;
+    }
+  }
+
+  ctx.putImageData(imgData, 0, 0);
+  return canvas;
+}
+
+/**
+ * Creates a data URL of the synthesized monochrome icon for instant live preview.
+ */
+export async function createMonochromeDataUrl(sourceDataUrl: string, size: number = 128): Promise<string> {
+  const img = await loadImage(sourceDataUrl);
+  const canvas = synthesizeMonochromeCanvas(img, img.naturalWidth || img.width, img.naturalHeight || img.height, size, size);
+  return canvas.toDataURL('image/png');
+}
+
+/**
+ * Renders multi-layer or single icon to canvas with support for foreground, background, monochrome, and dark variants.
+ */
+export function renderLayeredIconToCanvas(
+  layers: LayerInputImages,
   targetWidth: number,
   targetHeight: number,
   options: ResizeOptions,
-  forceTransparentBackground: boolean = false
+  shape: 'default' | 'round' | 'foreground' | 'background' | 'monochrome' | 'dark' | 'tinted' | 'maskable' = 'default'
 ): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
   canvas.width = targetWidth;
@@ -101,8 +178,79 @@ export function renderIconToCanvas(
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
 
-  // 1. Draw Background
-  if (!forceTransparentBackground && options.backgroundColor !== 'transparent') {
+  const fg = layers.foreground || layers.master;
+  const bg = layers.background;
+  const mono = layers.monochrome;
+
+  // 1. Standalone background
+  if (shape === 'background') {
+    if (bg) {
+      const scaledBg = steppedDownscale(bg, bg.naturalWidth || bg.width, bg.naturalHeight || bg.height, targetWidth, targetHeight);
+      ctx.drawImage(scaledBg, 0, 0, targetWidth, targetHeight);
+    } else {
+      ctx.fillStyle = options.backgroundColor === 'transparent' ? '#0f172a' : options.backgroundColor;
+      ctx.fillRect(0, 0, targetWidth, targetHeight);
+    }
+    return canvas;
+  }
+
+  // 2. Standalone monochrome / tinted
+  if (shape === 'monochrome' || shape === 'tinted') {
+    if (mono) {
+      const paddingRatio = Math.max(0, Math.min(40, options.padding)) / 100;
+      const padX = targetWidth * paddingRatio;
+      const padY = targetHeight * paddingRatio;
+      const drawWidth = Math.max(1, Math.round(targetWidth - padX * 2));
+      const drawHeight = Math.max(1, Math.round(targetHeight - padY * 2));
+      const scaledMono = steppedDownscale(mono, mono.naturalWidth || mono.width, mono.naturalHeight || mono.height, drawWidth, drawHeight);
+      ctx.drawImage(scaledMono, Math.round(padX), Math.round(padY), drawWidth, drawHeight);
+    } else if (fg) {
+      const paddingRatio = Math.max(0, Math.min(40, options.padding)) / 100;
+      const padX = targetWidth * paddingRatio;
+      const padY = targetHeight * paddingRatio;
+      const drawWidth = Math.max(1, Math.round(targetWidth - padX * 2));
+      const drawHeight = Math.max(1, Math.round(targetHeight - padY * 2));
+      const synthCanvas = synthesizeMonochromeCanvas(fg, fg.naturalWidth || fg.width, fg.naturalHeight || fg.height, drawWidth, drawHeight);
+      ctx.drawImage(synthCanvas, Math.round(padX), Math.round(padY), drawWidth, drawHeight);
+    }
+    return canvas;
+  }
+
+  // 3. Standalone foreground (Adaptive Icon foreground: transparent canvas with 18% - 30% safe zone inset)
+  if (shape === 'foreground') {
+    if (fg) {
+      const safePaddingRatio = Math.max(0.18, Math.min(0.35, options.padding / 100));
+      const padX = targetWidth * safePaddingRatio;
+      const padY = targetHeight * safePaddingRatio;
+      const drawWidth = Math.max(1, Math.round(targetWidth - padX * 2));
+      const drawHeight = Math.max(1, Math.round(targetHeight - padY * 2));
+      const scaledFg = steppedDownscale(fg, fg.naturalWidth || fg.width, fg.naturalHeight || fg.height, drawWidth, drawHeight);
+      ctx.drawImage(scaledFg, Math.round(padX), Math.round(padY), drawWidth, drawHeight);
+    }
+    return canvas;
+  }
+
+  // 4. Standalone dark mode (iOS 18 Dark Mode)
+  if (shape === 'dark') {
+    ctx.fillStyle = '#12151d';
+    ctx.fillRect(0, 0, targetWidth, targetHeight);
+    if (fg) {
+      const paddingRatio = Math.max(0, Math.min(40, options.padding)) / 100;
+      const padX = targetWidth * paddingRatio;
+      const padY = targetHeight * paddingRatio;
+      const drawWidth = Math.max(1, Math.round(targetWidth - padX * 2));
+      const drawHeight = Math.max(1, Math.round(targetHeight - padY * 2));
+      const scaledFg = steppedDownscale(fg, fg.naturalWidth || fg.width, fg.naturalHeight || fg.height, drawWidth, drawHeight);
+      ctx.drawImage(scaledFg, Math.round(padX), Math.round(padY), drawWidth, drawHeight);
+    }
+    return canvas;
+  }
+
+  // 5. Composite Background layer
+  if (bg) {
+    const scaledBg = steppedDownscale(bg, bg.naturalWidth || bg.width, bg.naturalHeight || bg.height, targetWidth, targetHeight);
+    ctx.drawImage(scaledBg, 0, 0, targetWidth, targetHeight);
+  } else if (options.backgroundColor !== 'transparent') {
     if (options.backgroundMode === 'gradient' && options.gradientStart && options.gradientEnd) {
       const angleRad = ((options.gradientAngle || 135) * Math.PI) / 180;
       const x1 = targetWidth / 2 - (Math.cos(angleRad) * targetWidth) / 2;
@@ -121,22 +269,54 @@ export function renderIconToCanvas(
     }
   }
 
-  // 2. Calculate content area with padding
-  // padding is 0 to 40 (percentage)
-  const paddingRatio = Math.max(0, Math.min(40, options.padding)) / 100;
-  const padX = targetWidth * paddingRatio;
-  const padY = targetHeight * paddingRatio;
-  const drawWidth = Math.max(1, Math.round(targetWidth - padX * 2));
-  const drawHeight = Math.max(1, Math.round(targetHeight - padY * 2));
-  const drawX = Math.round(padX);
-  const drawY = Math.round(padY);
+  // 6. Composite Foreground layer
+  if (fg) {
+    const effectivePadding = shape === 'maskable' ? Math.max(options.padding, 20) : options.padding;
+    const paddingRatio = Math.max(0, Math.min(40, effectivePadding)) / 100;
+    const padX = targetWidth * paddingRatio;
+    const padY = targetHeight * paddingRatio;
+    const drawWidth = Math.max(1, Math.round(targetWidth - padX * 2));
+    const drawHeight = Math.max(1, Math.round(targetHeight - padY * 2));
+    const scaledFg = steppedDownscale(fg, fg.naturalWidth || fg.width, fg.naturalHeight || fg.height, drawWidth, drawHeight);
+    ctx.drawImage(scaledFg, Math.round(padX), Math.round(padY), drawWidth, drawHeight);
+  }
 
-  // 3. Render downscaled image into content area
-  const scaledImageCanvas = steppedDownscale(img, img.naturalWidth || img.width, img.naturalHeight || img.height, drawWidth, drawHeight);
-
-  ctx.drawImage(scaledImageCanvas, drawX, drawY, drawWidth, drawHeight);
+  // 7. Circular mask for round shape
+  if (shape === 'round') {
+    const roundCanvas = document.createElement('canvas');
+    roundCanvas.width = targetWidth;
+    roundCanvas.height = targetHeight;
+    const roundCtx = roundCanvas.getContext('2d');
+    if (roundCtx) {
+      roundCtx.imageSmoothingEnabled = true;
+      roundCtx.imageSmoothingQuality = 'high';
+      roundCtx.beginPath();
+      roundCtx.arc(targetWidth / 2, targetHeight / 2, targetWidth / 2, 0, Math.PI * 2);
+      roundCtx.closePath();
+      roundCtx.clip();
+      roundCtx.drawImage(canvas, 0, 0);
+      return roundCanvas;
+    }
+  }
 
   return canvas;
+}
+
+/**
+ * Renders an image to an HTMLCanvasElement with options (padding, background, corner radius).
+ */
+export function renderIconToCanvas(
+  img: HTMLImageElement,
+  targetWidth: number,
+  targetHeight: number,
+  options: ResizeOptions,
+  forceTransparentBackground: boolean = false
+): HTMLCanvasElement {
+  const effectiveOptions: ResizeOptions = forceTransparentBackground
+    ? { ...options, backgroundColor: 'transparent', backgroundMode: 'transparent' }
+    : options;
+
+  return renderLayeredIconToCanvas({ master: img }, targetWidth, targetHeight, effectiveOptions, 'default');
 }
 
 /**

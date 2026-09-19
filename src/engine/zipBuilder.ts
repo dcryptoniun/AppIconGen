@@ -1,6 +1,6 @@
 import JSZip from 'jszip';
 import type { PlatformId, ResizeOptions } from '../types';
-import { canvasToBlob, renderIconToCanvas } from './resizerEngine';
+import { canvasToBlob, renderLayeredIconToCanvas, type LayerInputImages } from './resizerEngine';
 import { canvasToPngBytes, encodeIco, type IcoImageFrame } from './icoEncoder';
 import {
   ANDROID_FILE_SPECS,
@@ -31,44 +31,20 @@ export interface BuildResult {
 }
 
 /**
- * Creates circular clipped canvas for round icon variants.
- */
-function createRoundIconCanvas(
-  img: HTMLImageElement,
-  size: number,
-  options: ResizeOptions
-): HTMLCanvasElement {
-  const sourceCanvas = renderIconToCanvas(img, size, size, options);
-  const roundCanvas = document.createElement('canvas');
-  roundCanvas.width = size;
-  roundCanvas.height = size;
-  const ctx = roundCanvas.getContext('2d');
-  if (!ctx) throw new Error('Could not get 2D context');
-
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = 'high';
-
-  // Clip to circle
-  ctx.beginPath();
-  ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
-  ctx.closePath();
-  ctx.clip();
-
-  ctx.drawImage(sourceCanvas, 0, 0);
-  return roundCanvas;
-}
-
-/**
  * Builds the complete zip archive with selected platforms.
  */
 export async function buildPlatformBundle(
-  img: HTMLImageElement,
+  source: HTMLImageElement | LayerInputImages,
   selectedPlatforms: PlatformId[],
   options: ResizeOptions,
   appName: string = 'AppIcon',
   onProgress?: BuildProgressCallback
 ): Promise<BuildResult> {
   const zip = new JSZip();
+
+  // Normalize layers
+  const layers: LayerInputImages =
+    source instanceof HTMLImageElement ? { master: source } : source;
 
   // Estimate total tasks
   let totalTasks = 0;
@@ -94,7 +70,7 @@ export async function buildPlatformBundle(
   if (selectedPlatforms.includes('ios')) {
     for (const spec of IOS_FILE_SPECS) {
       notify(`Rendering iOS ${spec.width}×${spec.height} (${spec.purpose || 'icon'})`);
-      const canvas = renderIconToCanvas(img, spec.width, spec.height, options);
+      const canvas = renderLayeredIconToCanvas(layers, spec.width, spec.height, options, spec.shape || 'default');
       const blob = await canvasToBlob(canvas);
       zip.file(spec.path, blob);
     }
@@ -106,28 +82,7 @@ export async function buildPlatformBundle(
   if (selectedPlatforms.includes('android')) {
     for (const spec of ANDROID_FILE_SPECS) {
       notify(`Rendering Android ${spec.path.split('/').pop()}`);
-      let canvas: HTMLCanvasElement;
-      if (spec.shape === 'round') {
-        canvas = createRoundIconCanvas(img, spec.width, options);
-      } else if (spec.shape === 'foreground') {
-        // Adaptive foreground must have transparent background and safe inset
-        canvas = renderIconToCanvas(img, spec.width, spec.height, {
-          ...options,
-          padding: Math.max(options.padding, 16), // safe zone for foreground
-        }, true);
-      } else if (spec.shape === 'background') {
-        // Adaptive background
-        canvas = document.createElement('canvas');
-        canvas.width = spec.width;
-        canvas.height = spec.height;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.fillStyle = options.backgroundColor === 'transparent' ? '#0a0d14' : options.backgroundColor;
-          ctx.fillRect(0, 0, spec.width, spec.height);
-        }
-      } else {
-        canvas = renderIconToCanvas(img, spec.width, spec.height, options);
-      }
+      const canvas = renderLayeredIconToCanvas(layers, spec.width, spec.height, options, spec.shape || 'default');
       const blob = await canvasToBlob(canvas);
       zip.file(spec.path, blob);
     }
@@ -141,7 +96,7 @@ export async function buildPlatformBundle(
   if (selectedPlatforms.includes('macos')) {
     for (const spec of MACOS_FILE_SPECS) {
       notify(`Rendering macOS ${spec.width}×${spec.height}`);
-      const canvas = renderIconToCanvas(img, spec.width, spec.height, options);
+      const canvas = renderLayeredIconToCanvas(layers, spec.width, spec.height, options, spec.shape || 'default');
       const blob = await canvasToBlob(canvas);
       zip.file(spec.path, blob);
     }
@@ -153,7 +108,7 @@ export async function buildPlatformBundle(
   if (selectedPlatforms.includes('web')) {
     for (const spec of WEB_FILE_SPECS) {
       notify(`Rendering Web ${spec.width}×${spec.height}`);
-      const canvas = renderIconToCanvas(img, spec.width, spec.height, options);
+      const canvas = renderLayeredIconToCanvas(layers, spec.width, spec.height, options, spec.shape || 'default');
       const blob = await canvasToBlob(canvas);
       zip.file(spec.path, blob);
     }
@@ -163,7 +118,7 @@ export async function buildPlatformBundle(
     const icoSizes = [16, 32, 48];
     const frames: IcoImageFrame[] = [];
     for (const size of icoSizes) {
-      const c = renderIconToCanvas(img, size, size, options);
+      const c = renderLayeredIconToCanvas(layers, size, size, options, layers.foreground ? 'foreground' : 'default');
       const pngData = await canvasToPngBytes(c);
       frames.push({ width: size, height: size, pngData });
     }
@@ -180,7 +135,7 @@ export async function buildPlatformBundle(
   if (selectedPlatforms.includes('windows')) {
     for (const spec of WINDOWS_FILE_SPECS) {
       notify(`Rendering Windows Tile ${spec.width}×${spec.height}`);
-      const canvas = renderIconToCanvas(img, spec.width, spec.height, options);
+      const canvas = renderLayeredIconToCanvas(layers, spec.width, spec.height, options, spec.shape || 'default');
       const blob = await canvasToBlob(canvas);
       zip.file(spec.path, blob);
     }
@@ -190,7 +145,7 @@ export async function buildPlatformBundle(
     const winIcoSizes = [16, 24, 32, 48, 64, 128, 256];
     const winFrames: IcoImageFrame[] = [];
     for (const size of winIcoSizes) {
-      const c = renderIconToCanvas(img, size, size, options);
+      const c = renderLayeredIconToCanvas(layers, size, size, options, 'default');
       const pngData = await canvasToPngBytes(c);
       winFrames.push({ width: size, height: size, pngData });
     }
@@ -202,7 +157,7 @@ export async function buildPlatformBundle(
   if (selectedPlatforms.includes('linux')) {
     for (const spec of LINUX_FILE_SPECS) {
       notify(`Rendering Linux hicolor ${spec.width}×${spec.height}`);
-      const canvas = renderIconToCanvas(img, spec.width, spec.height, options);
+      const canvas = renderLayeredIconToCanvas(layers, spec.width, spec.height, options, spec.shape || 'default');
       const blob = await canvasToBlob(canvas);
       zip.file(spec.path, blob);
     }
@@ -214,7 +169,7 @@ export async function buildPlatformBundle(
   if (selectedPlatforms.includes('favicon')) {
     for (const spec of FAVICON_FILE_SPECS) {
       notify(`Rendering Favicon ${spec.width}×${spec.height} PNG`);
-      const canvas = renderIconToCanvas(img, spec.width, spec.height, options);
+      const canvas = renderLayeredIconToCanvas(layers, spec.width, spec.height, options, layers.foreground ? 'foreground' : 'default');
       const blob = await canvasToBlob(canvas);
       zip.file(spec.path, blob);
     }
@@ -223,7 +178,7 @@ export async function buildPlatformBundle(
     const favSizes = [16, 32, 48];
     const favFrames: IcoImageFrame[] = [];
     for (const size of favSizes) {
-      const c = renderIconToCanvas(img, size, size, options);
+      const c = renderLayeredIconToCanvas(layers, size, size, options, layers.foreground ? 'foreground' : 'default');
       const pngData = await canvasToPngBytes(c);
       favFrames.push({ width: size, height: size, pngData });
     }
@@ -268,26 +223,31 @@ export async function buildPlatformBundle(
  * Generates an individual asset for quick single-file download.
  */
 export async function exportSingleAsset(
-  img: HTMLImageElement,
+  source: HTMLImageElement | LayerInputImages,
   width: number,
   height: number,
   extension: 'png' | 'ico',
   options: ResizeOptions
 ): Promise<{ blob: Blob; mimeType: string }> {
+  const layers: LayerInputImages =
+    source instanceof HTMLImageElement ? { master: source } : source;
+
   if (extension === 'ico') {
     const icoSizes = width >= 256 ? [16, 24, 32, 48, 64, 128, 256] : [16, 32, 48];
     const frames: IcoImageFrame[] = [];
     for (const size of icoSizes) {
-      const c = renderIconToCanvas(img, size, size, options);
+      const c = renderLayeredIconToCanvas(layers, size, size, options, layers.foreground ? 'foreground' : 'default');
       const pngData = await canvasToPngBytes(c);
       frames.push({ width: size, height: size, pngData });
     }
-    const bytes = encodeIco(frames);
-    const blob = new Blob([bytes.buffer as ArrayBuffer], { type: 'image/x-icon' });
-    return { blob, mimeType: 'image/x-icon' };
-  } else {
-    const canvas = renderIconToCanvas(img, width, height, options);
-    const blob = await canvasToBlob(canvas);
-    return { blob, mimeType: 'image/png' };
+    const icoBytes = encodeIco(frames);
+    return {
+      blob: new Blob([icoBytes as any], { type: 'image/x-icon' }),
+      mimeType: 'image/x-icon',
+    };
   }
+
+  const canvas = renderLayeredIconToCanvas(layers, width, height, options, 'default');
+  const blob = await canvasToBlob(canvas, 'image/png');
+  return { blob, mimeType: 'image/png' };
 }

@@ -43,6 +43,25 @@ export interface ResizeOptions {
   autoTrimWhitespace?: boolean;
 }
 
+export type InputMode = 'single' | 'multilayer';
+
+export interface LayerAsset {
+  file: File | null;
+  name: string;
+  width: number;
+  height: number;
+  dataUrl: string;
+  sizeBytes: number;
+  format: string;
+}
+
+export interface MultiLayerState {
+  mode: InputMode;
+  foreground: LayerAsset | null;
+  background: LayerAsset | null;
+  monochrome: LayerAsset | null;
+}
+
 export interface SourceImageMeta {
   file: File | null;
   name: string;
