@@ -1,4 +1,5 @@
 import type { ResizeOptions } from '../types';
+import { injectPngBlobMetadata, type PngMetadata } from './pngMetadata';
 
 /**
  * Loads an image from a Data URL or Blob URL into an HTMLImageElement.
@@ -320,13 +321,23 @@ export function renderIconToCanvas(
 }
 
 /**
- * Renders icon to PNG Blob.
+ * Renders icon to Blob with automated PNG metadata injection.
  */
-export function canvasToBlob(canvas: HTMLCanvasElement, mimeType: string = 'image/png'): Promise<Blob> {
-  return new Promise((resolve, reject) => {
+export async function canvasToBlob(
+  canvas: HTMLCanvasElement,
+  mimeType: string = 'image/png',
+  metadata?: Partial<PngMetadata>
+): Promise<Blob> {
+  const rawBlob = await new Promise<Blob>((resolve, reject) => {
     canvas.toBlob((blob) => {
       if (blob) resolve(blob);
       else reject(new Error('Failed to create blob from canvas'));
     }, mimeType);
   });
+
+  if (mimeType === 'image/png') {
+    return injectPngBlobMetadata(rawBlob, metadata);
+  }
+
+  return rawBlob;
 }

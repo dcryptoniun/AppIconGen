@@ -10,6 +10,7 @@ import {
   generateHtmlHeadSnippet,
   generateLinuxDesktopFile,
   generateMacIcnsScript,
+  generateRootReadme,
   generateWebManifest,
   generateXcodeContentsJson,
   IOS_FILE_SPECS,
@@ -46,8 +47,8 @@ export async function buildPlatformBundle(
   const layers: LayerInputImages =
     source instanceof HTMLImageElement ? { master: source } : source;
 
-  // Estimate total tasks
-  let totalTasks = 0;
+  // Estimate total tasks (+ 1 for root README.txt)
+  let totalTasks = 1;
   if (selectedPlatforms.includes('ios')) totalTasks += IOS_FILE_SPECS.length + 1; // + Contents.json
   if (selectedPlatforms.includes('android')) totalTasks += ANDROID_FILE_SPECS.length + 2; // + 2 XML files
   if (selectedPlatforms.includes('macos')) totalTasks += MACOS_FILE_SPECS.length + 1; // + script
@@ -185,6 +186,10 @@ export async function buildPlatformBundle(
     const favIcoBytes = encodeIco(favFrames);
     zip.file('favicon/favicon.ico', favIcoBytes);
   }
+
+  // 8. Root README.txt with website URL & attribution
+  notify('Generating root README.txt documentation');
+  zip.file('README.txt', generateRootReadme(appName, selectedPlatforms));
 
   if (onProgress) {
     onProgress(96, 'Compressing ZIP archive...', completedTasks, totalTasks);

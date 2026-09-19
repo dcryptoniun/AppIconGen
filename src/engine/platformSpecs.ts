@@ -1,4 +1,4 @@
-import type { PlatformConfig } from '../types';
+import type { PlatformConfig, PlatformId } from '../types';
 
 export interface FileSpec {
   path: string;
@@ -319,3 +319,94 @@ export const FAVICON_FILE_SPECS: FileSpec[] = [
   { path: 'favicon/favicon-32x32.png', width: 32, height: 32 },
   { path: 'favicon/favicon-48x48.png', width: 48, height: 48 },
 ];
+
+/**
+ * Generates the root README.txt included in every ZIP package.
+ */
+export function generateRootReadme(appName: string, selectedPlatforms: PlatformId[]): string {
+  const currentYear = new Date().getFullYear();
+  const dateStr = new Date().toISOString().split('T')[0];
+
+  const platformNames: Record<PlatformId, string> = {
+    ios: 'iOS & iPadOS (AppIcon.appiconset with iOS 18 Light, Dark, and Tinted appearances)',
+    android: 'Android (Adaptive Foregrounds, Monochrome Themed Icons, and Play Store 512×512)',
+    macos: 'macOS (AppIcon.iconset up to 1024×1024 + convert_to_icns.sh)',
+    web: 'Web & PWA (Favicons, Maskable 512×512, site.webmanifest, and HTML snippets)',
+    windows: 'Windows (Multi-resolution app.ico 16–256px + Windows App SDK Tile assets)',
+    linux: 'Linux (Hicolor icon theme hierarchy + app-icon.desktop launcher)',
+    favicon: 'Favicon (.ico multi-res 16/32/48px and high-res PNG favicons)',
+  };
+
+  const platformsFormatted = selectedPlatforms
+    .map((p) => `  • ${platformNames[p] || p}`)
+    .join('\n');
+
+  return `========================================================================
+APP ICON BUNDLE — GENERATED WITH ICONFORGE
+Website:   https://appicon.gerstudio.com/
+Author:    Ger Studio (https://www.gerstudio.com/)
+Created:   ${dateStr} (${currentYear})
+App Name:  ${appName || 'AppIcon'}
+========================================================================
+
+Thank you for using IconForge by Ger Studio!
+This icon bundle was generated 100% locally and privately inside your web browser.
+Zero images or network requests were sent to any remote server.
+
+Every PNG and ICO image in this package contains embedded metadata:
+  • Software: IconForge by Ger Studio (https://appicon.gerstudio.com/)
+  • Author:   Ger Studio (https://www.gerstudio.com/)
+  • Website:  https://appicon.gerstudio.com/
+  • Source:   https://appicon.gerstudio.com/
+
+------------------------------------------------------------------------
+TARGET PLATFORMS INCLUDED IN THIS PACKAGE:
+------------------------------------------------------------------------
+${platformsFormatted}
+
+------------------------------------------------------------------------
+QUICK INTEGRATION INSTRUCTIONS:
+------------------------------------------------------------------------
+• iOS / iPadOS:
+  Copy the 'ios/AppIcon.appiconset' directory directly into your Xcode project's
+  Assets.xcassets catalog.
+
+• Android:
+  Copy 'android/res/' into your Android project's 'app/src/main/res/' directory.
+  For Google Play Store submission, use 'android/playstore-512.png'.
+
+• macOS:
+  Add 'macos/AppIcon.iconset' to your Xcode project, or run:
+    sh macos/convert_to_icns.sh
+  in Terminal on a Mac to compile a native AppIcon.icns file.
+
+• Web & PWA:
+  Place 'web/favicon.ico' and related web icons in your site's root or public
+  directory, and paste the contents of 'web/html_snippet.html' into your <head>.
+
+• Windows:
+  Use 'windows/app.ico' as your Windows application executable icon.
+  Use 'windows/tiles/' for Windows App SDK and Store manifests.
+
+• Linux:
+  Copy icons from 'linux/hicolor/' to '~/.local/share/icons/hicolor/'
+  or '/usr/share/icons/hicolor/'.
+
+• Favicons:
+  Upload 'favicon/favicon.ico' to your website's root directory.
+
+------------------------------------------------------------------------
+COMMUNITY & DEVELOPER SUPPORT:
+------------------------------------------------------------------------
+• Web App:         https://appicon.gerstudio.com/
+• Ger Studio:      https://www.gerstudio.com/
+• GitHub Repo:     https://github.com/dcryptoniun/AppIconGen
+• Report an Issue: https://github.com/dcryptoniun/AppIconGen/issues
+• GitHub Sponsor:  https://github.com/sponsors/dcryptoniun
+• Buy Me a Coffee: https://buymeacoffee.com/mayankmeena
+
+========================================================================
+IconForge is free & open-source software licensed under MIT.
+Made with ❤️ by Mayank Meena (Ger Studio)
+`;
+}

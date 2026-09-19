@@ -4,6 +4,8 @@
  * Compatible with all modern browsers, Windows Explorer, and standard favicon specs.
  */
 
+import { injectPngMetadata, type PngMetadata } from './pngMetadata';
+
 export interface IcoImageFrame {
   width: number;
   height: number;
@@ -84,7 +86,10 @@ export function encodeIco(frames: IcoImageFrame[]): Uint8Array {
 /**
  * Converts a Canvas element to PNG Uint8Array.
  */
-export async function canvasToPngBytes(canvas: HTMLCanvasElement): Promise<Uint8Array> {
+export async function canvasToPngBytes(
+  canvas: HTMLCanvasElement,
+  metadata?: Partial<PngMetadata>
+): Promise<Uint8Array> {
   return new Promise((resolve, reject) => {
     canvas.toBlob((blob) => {
       if (!blob) {
@@ -94,7 +99,8 @@ export async function canvasToPngBytes(canvas: HTMLCanvasElement): Promise<Uint8
       const reader = new FileReader();
       reader.onload = () => {
         if (reader.result instanceof ArrayBuffer) {
-          resolve(new Uint8Array(reader.result));
+          const rawBytes = new Uint8Array(reader.result);
+          resolve(injectPngMetadata(rawBytes, metadata));
         } else {
           reject(new Error('Unexpected FileReader result format'));
         }

@@ -132,6 +132,10 @@ export const GenerationModal: React.FC<GenerationModalProps> = ({ progress, onCl
                     <span className="font-mono text-slate-200">{formattedZipSize}</span>
                   </div>
                 )}
+                <div className="flex items-center justify-between border-t border-slate-800/80 pt-2 text-[11px]">
+                  <span className="text-slate-400">Included in Root:</span>
+                  <span className="font-medium text-cyan-300">README.txt • Embedded Image Metadata</span>
+                </div>
               </div>
 
               {/* Download Button */}
