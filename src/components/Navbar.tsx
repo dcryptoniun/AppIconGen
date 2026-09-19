@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldCheck, Zap, Sparkles, Layers, Terminal, ExternalLink, Heart } from 'lucide-react';
+import { ShieldCheck, Zap, Sparkles, Layers, Terminal, ExternalLink, Heart, Coffee } from 'lucide-react';
 
 interface NavbarProps {
   onScrollToSection: (id: string) => void;
@@ -129,7 +129,20 @@ export const Navbar: React.FC<NavbarProps> = ({ onScrollToSection, totalPlatform
             className="flex items-center gap-1.5 rounded-lg border border-pink-500/30 bg-pink-500/10 hover:bg-pink-500/20 px-2.5 py-1.5 text-xs font-semibold text-pink-300 hover:text-pink-200 transition-all shadow-sm"
           >
             <Heart className="h-3.5 w-3.5 fill-pink-500/40 text-pink-400" />
-            <span>Sponsor</span>
+            <span className="hidden sm:inline">Sponsor</span>
+          </a>
+
+          {/* Buy Me a Coffee Button */}
+          <a
+            href="https://buymeacoffee.com/mayankmeena"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Buy me a coffee on buymeacoffee.com (opens in new tab)"
+            className="flex items-center gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-1.5 text-xs font-semibold text-amber-300 hover:text-amber-200 transition-all shadow-sm"
+          >
+            <Coffee className="h-3.5 w-3.5 text-amber-400" />
+            <span className="hidden md:inline">Buy Me a Coffee</span>
+            <span className="hidden sm:inline md:hidden">Coffee</span>
           </a>
 
           {/* GitHub Repo Button */}

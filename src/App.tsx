@@ -184,14 +184,6 @@ export const App: React.FC = () => {
         zipSize: result.sizeBytes,
         completedFiles: result.totalFiles,
       }));
-
-      // Trigger automatic download
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.download = result.fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
     } catch (err: any) {
       console.error('Generation failed:', err);
       setGenerationProgress((prev) => ({

@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { CheckCircle2, Download, Loader2, Sparkles, X, ShieldCheck } from 'lucide-react';
+import { CheckCircle2, Download, Loader2, Sparkles, X, ShieldCheck, Heart, Coffee } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import type { GenerationProgress } from '../types';
 
@@ -146,6 +146,37 @@ export const GenerationModal: React.FC<GenerationModalProps> = ({ progress, onCl
                   <Sparkles className="h-4 w-4 text-amber-300" />
                 </a>
               )}
+
+              {/* Support Developer & Donate Section */}
+              <div className="rounded-2xl border border-slate-800/90 bg-gradient-to-b from-slate-950/80 to-slate-900/60 p-4 text-center space-y-2.5">
+                <div className="flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-200">
+                  <Heart className="h-3.5 w-3.5 fill-pink-500/40 text-pink-400" />
+                  <span>Support Developer & Open Source</span>
+                </div>
+                <p className="text-[11px] text-slate-400 leading-relaxed max-w-sm mx-auto">
+                  If IconForge saved you time, consider supporting open-source development with a sponsorship or a coffee!
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                  <a
+                    href="https://github.com/sponsors/dcryptoniun"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 rounded-xl border border-pink-500/30 bg-pink-500/10 hover:bg-pink-500/20 px-3.5 py-2.5 text-xs font-semibold text-pink-300 hover:text-pink-200 transition-all shadow-sm group"
+                  >
+                    <Heart className="h-3.5 w-3.5 fill-pink-500/40 text-pink-400 group-hover:scale-110 transition-transform" />
+                    <span>GitHub Sponsor</span>
+                  </a>
+                  <a
+                    href="https://buymeacoffee.com/mayankmeena"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 px-3.5 py-2.5 text-xs font-semibold text-amber-300 hover:text-amber-200 transition-all shadow-sm group"
+                  >
+                    <Coffee className="h-3.5 w-3.5 text-amber-400 group-hover:scale-110 transition-transform" />
+                    <span>Buy Me a Coffee</span>
+                  </a>
+                </div>
+              </div>
 
               <p className="text-[11px] text-slate-400 flex items-center justify-center gap-1.5">
                 <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
