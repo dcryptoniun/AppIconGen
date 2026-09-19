@@ -121,13 +121,24 @@ export const Footer: React.FC<FooterProps> = ({ onScrollToSection }) => {
               </li>
               <li>
                 <a
-                  href="https://www.gerstudio.com/"
+                  href="https://github.com/sponsors/dcryptoniun"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 text-pink-400 hover:text-pink-300 transition-colors font-medium"
                 >
                   <Heart className="h-3.5 w-3.5 fill-pink-500/30 text-pink-400" />
-                  <span>Sponsor Ger Studio</span>
+                  <span>GitHub Sponsors</span>
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://buymeacoffee.com/mayankmeena"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-amber-400 hover:text-amber-300 transition-colors font-medium"
+                >
+                  <span className="text-xs">☕</span>
+                  <span>Buy Me a Coffee</span>
                 </a>
               </li>
             </ul>

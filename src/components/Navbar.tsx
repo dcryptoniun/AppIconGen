@@ -122,10 +122,10 @@ export const Navbar: React.FC<NavbarProps> = ({ onScrollToSection, totalPlatform
 
           {/* Sponsor Button */}
           <a
-            href="https://www.gerstudio.com/"
+            href="https://github.com/sponsors/dcryptoniun"
             target="_blank"
             rel="noopener noreferrer"
-            title="Sponsor Ger Studio"
+            title="Sponsor on GitHub Sponsors (opens in new tab)"
             className="flex items-center gap-1.5 rounded-lg border border-pink-500/30 bg-pink-500/10 hover:bg-pink-500/20 px-2.5 py-1.5 text-xs font-semibold text-pink-300 hover:text-pink-200 transition-all shadow-sm"
           >
             <Heart className="h-3.5 w-3.5 fill-pink-500/40 text-pink-400" />

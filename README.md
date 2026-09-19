@@ -1,6 +1,8 @@
 # 🚀 IconForge Studio — Universal Local-First App Icon Resizer
 
 [![Live Website](https://img.shields.io/badge/Live_Website-appicon.gerstudio.com-6366F1?style=for-the-badge&logo=safari&logoColor=white)](https://appicon.gerstudio.com)
+[![GitHub Sponsors](https://img.shields.io/badge/Sponsor_on_GitHub-EA4AAA?style=for-the-badge&logo=github-sponsors&logoColor=white)](https://github.com/sponsors/dcryptoniun)
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy_Me_a_Coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/mayankmeena)
 [![GitHub License](https://img.shields.io/badge/License-MIT-emerald?style=for-the-badge)](LICENSE)
 [![Ger Studio](https://img.shields.io/badge/Created_By-Ger_Studio-06B6D4?style=for-the-badge&logo=appveyor)](https://www.gerstudio.com)
 [![Zero Uploads](https://img.shields.io/badge/Privacy-100%25_Client--Side-green?style=for-the-badge&logo=shield)](https://appicon.gerstudio.com)
@@ -9,7 +11,8 @@
 
 🌐 **Live URL**: [https://appicon.gerstudio.com](https://appicon.gerstudio.com)  
 🏢 **Studio**: [Ger Studio](https://www.gerstudio.com) — *Indie Studio for Apps & Game Development*  
-👤 **Author**: [Mayank Meena](https://www.gerstudio.com)
+👤 **Author**: [Mayank Meena](https://www.gerstudio.com)  
+💖 **Sponsor**: [GitHub Sponsors](https://github.com/sponsors/dcryptoniun) • [Buy Me a Coffee](https://buymeacoffee.com/mayankmeena)
 
 ---
 
@@ -43,37 +46,12 @@
 
 ---
 
-## 🚀 Quick Start
-
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/dcryptoniun/AppIconGen.git
-   cd AppIconGen
-   ```
-
-2. **Install dependencies:**
-   ```bash
-   npm install
-   ```
-
-3. **Start local development server:**
-   ```bash
-   npm run dev
-   ```
-   Open `http://localhost:5173` in your browser.
-
-4. **Build production bundle:**
-   ```bash
-   npm run build
-   ```
-
----
-
 ## 🤝 Community & Support
 
 - 🐛 **Report a Bug**: [Open an issue](https://github.com/dcryptoniun/AppIconGen/issues)
 - 💡 **Request a Feature**: [Feature request](https://github.com/dcryptoniun/AppIconGen/issues/new)
-- 💖 **Sponsor Ger Studio**: [Support on GitHub / Website](https://www.gerstudio.com/)
+- 💖 **GitHub Sponsors**: [Sponsor @dcryptoniun](https://github.com/sponsors/dcryptoniun)
+- ☕ **Buy Me a Coffee**: [buymeacoffee.com/mayankmeena](https://buymeacoffee.com/mayankmeena)
 - 📜 **Contribution Guidelines**: See [CONTRIBUTING.md](CONTRIBUTING.md)
 
 ---
